@@ -50,7 +50,7 @@ WORKDIR /var/www
 
 # 4-a) PHP deps (cached)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts --ignore-platform-reqs
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
 
 # 4-b) Node deps (cached)
 COPY package*.json ./
@@ -61,7 +61,7 @@ COPY . .
 RUN rm -rf tests/ .git/ .github/ docker/
 
 # 4-d) Front-end build & autoload refresh
-RUN npm run build && composer run-script post-autoload-dump --ignore-platform-reqs
+RUN npm run build && composer run-script post-autoload-dump
 
 # ------------------------------------------------------------
 # 5. Writable dirs + permissions
