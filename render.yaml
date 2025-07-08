@@ -2,8 +2,18 @@ services:
   - type: web
     name: laravel-app
     env: docker
-    dockerfilePath: ./Dockerfile      # path relative to repo root
+    dockerfilePath: ./Dockerfile
     autoDeploy: true
+
+    # ---- Build configuration ----
+    buildFilter:
+      paths:
+        - "**"
+      ignoredPaths:
+        - "node_modules/**"
+        - "vendor/**"
+        - "storage/logs/**"
+        - ".git/**"
 
     # ---- Runtime environment variables ----
     envVars:
@@ -15,12 +25,22 @@ services:
         generateValue: true
       - key: APP_URL
         value: https://commenting-system-task.onrender.com
+      - key: PORT
+        value: 8000
 
       # --- SQLite by default ---
       - key: DB_CONNECTION
         value: sqlite
       - key: DB_DATABASE
         value: /var/data/database.sqlite
+
+      # --- Session and cache configuration ---
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
 
       # --- Uncomment & edit for MySQL/Postgres instead ---
       # - key: DB_CONNECTION
@@ -49,5 +69,11 @@ services:
     # ---- Persistent storage for SQLite ----
     disks:
       - name: data
-        mountPath: /var/data    # must match DB_DATABASE path
+        mountPath: /var/data
         sizeGB: 1
+
+    # ---- Health check ----
+    healthCheckPath: /
+
+    # ---- Resource limits ----
+    plan: free

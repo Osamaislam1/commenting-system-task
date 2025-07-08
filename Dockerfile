@@ -1,16 +1,35 @@
 # syntax=docker/dockerfile:1
 FROM php:8.3-fpm
 
+# Set noninteractive mode to avoid prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
 # ------------------------------------------------------------
 # 1. OS packages + Node.js
 # ------------------------------------------------------------
 RUN apt-get update && apt-get install -y \
-        build-essential libpng-dev libjpeg-dev libfreetype6-dev \
-        libonig-dev libxml2-dev libzip-dev libsqlite3-dev \
-        zip unzip curl git \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs npm \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        build-essential \
+        libpng-dev \
+        libjpeg-dev \
+        libfreetype6-dev \
+        libonig-dev \
+        libxml2-dev \
+        libzip-dev \
+        libsqlite3-dev \
+        zip \
+        unzip \
+        curl \
+        git \
+        ca-certificates \
+        gnupg \
+        lsb-release \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------
 # 2. PHP extensions
@@ -28,25 +47,26 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # ------------------------------------------------------------
 WORKDIR /var/www
 
-#   4-a) PHP deps (cached)
+# 4-a) PHP deps (cached)
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
 
-#   4-b) Node deps (cached)
+# 4-b) Node deps (cached)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --no-audit --no-fund
 
-#   4-c) Source code
+# 4-c) Source code
 COPY . .
 
-#   4-d) Front-end build & autoload refresh
+# 4-d) Front-end build & autoload refresh
 RUN npm run build && composer run-script post-autoload-dump
 
 # ------------------------------------------------------------
 # 5. Writable dirs + permissions
 # ------------------------------------------------------------
 RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache \
-    && chown -R www-data:www-data /var/www
+    && chown -R www-data:www-data /var/www \
+    && chmod -R 775 storage bootstrap/cache
 
 USER www-data
 EXPOSE 8000
