@@ -20,13 +20,17 @@ services:
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: false
+        value: true
       - key: APP_KEY
         generateValue: true
       - key: APP_URL
         value: https://commenting-system-task.onrender.com
       - key: PORT
         value: 8000
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: debug
 
       # --- SQLite by default ---
       - key: DB_CONNECTION
@@ -43,6 +47,12 @@ services:
         value: file
       - key: QUEUE_CONNECTION
         value: sync
+      - key: SESSION_LIFETIME
+        value: 120
+      - key: VIEW_COMPILED_PATH
+        value: /tmp
+      - key: CACHE_PREFIX
+        value: laravel_cache
 
       # --- Uncomment & edit for MySQL/Postgres instead ---
       # - key: DB_CONNECTION

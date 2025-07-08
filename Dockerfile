@@ -81,6 +81,10 @@ EXPOSE ${PORT:-8000}
 # ------------------------------------------------------------
 CMD ["bash", "-c", "\
 set -euo pipefail; \
+echo \"==> Starting Laravel application...\"; \
+echo \"==> APP_ENV: ${APP_ENV:-production}\"; \
+echo \"==> APP_DEBUG: ${APP_DEBUG:-false}\"; \
+echo \"==> APP_KEY: ${APP_KEY:-not set}\"; \
 DB_CONNECTION=\"${DB_CONNECTION:-sqlite}\"; \
 DB_DATABASE=\"${DB_DATABASE:-/var/data/database.sqlite}\"; \
 echo \"==> DB_CONNECTION=$DB_CONNECTION\"; \
@@ -91,6 +95,7 @@ if [ \"$DB_CONNECTION\" = \"sqlite\" ]; then \
   touch \"$DB_DATABASE\"; \
   chown www-data:www-data \"$DB_DATABASE\"; \
   chmod 664 \"$DB_DATABASE\"; \
+  echo 'Running migrations...'; \
   php artisan migrate --force; \
 else \
   echo 'Waiting for remote database…'; \
@@ -99,10 +104,21 @@ else \
     sleep 3; \
   done; \
 fi; \
+echo 'Clearing and caching config...'; \
+php artisan config:clear; \
 php artisan config:cache; \
+echo 'Clearing and caching routes...'; \
+php artisan route:clear; \
 php artisan route:cache; \
+echo 'Clearing and caching views...'; \
+php artisan view:clear; \
 php artisan view:cache; \
+echo 'Creating storage link...'; \
 [ -L public/storage ] || php artisan storage:link; \
+echo 'Checking Laravel status...'; \
+php artisan about; \
+echo 'Listing routes...'; \
+php artisan route:list; \
 echo \"Laravel app starting on port ${PORT:-8000}\"; \
 exec php artisan serve --host=0.0.0.0 --port=\"${PORT:-8000}\" \
 "]
