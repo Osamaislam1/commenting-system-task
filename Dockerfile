@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM php:8.3-fpm
+FROM php:8.3-cli
 
 # Set noninteractive mode to avoid prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
         libxml2-dev \
         libzip-dev \
         libsqlite3-dev \
+        sqlite3 \
         zip \
         unzip \
         curl \
@@ -49,27 +50,31 @@ WORKDIR /var/www
 
 # 4-a) PHP deps (cached)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts --ignore-platform-reqs
 
 # 4-b) Node deps (cached)
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
-# 4-c) Source code
+# 4-c) Source code (exclude unnecessary files)
 COPY . .
+RUN rm -rf tests/ .git/ .github/ docker/
 
 # 4-d) Front-end build & autoload refresh
-RUN npm run build && composer run-script post-autoload-dump
+RUN npm run build && composer run-script post-autoload-dump --ignore-platform-reqs
 
 # ------------------------------------------------------------
 # 5. Writable dirs + permissions
 # ------------------------------------------------------------
 RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache \
     && chown -R www-data:www-data /var/www \
-    && chmod -R 775 storage bootstrap/cache
+    && chmod -R 775 storage bootstrap/cache \
+    && mkdir -p /var/data \
+    && chown -R www-data:www-data /var/data \
+    && chmod -R 775 /var/data
 
-USER www-data
-EXPOSE 8000
+# Expose port (will be set by Render)
+EXPOSE ${PORT:-8000}
 
 # ------------------------------------------------------------
 # 6. Runtime entry (inline)
@@ -84,6 +89,7 @@ if [ \"$DB_CONNECTION\" = \"sqlite\" ]; then \
   echo 'Setting up SQLite…'; \
   mkdir -p \"$(dirname \"$DB_DATABASE\")\"; \
   touch \"$DB_DATABASE\"; \
+  chown www-data:www-data \"$DB_DATABASE\"; \
   chmod 664 \"$DB_DATABASE\"; \
   php artisan migrate --force; \
 else \
@@ -97,6 +103,6 @@ php artisan config:cache; \
 php artisan route:cache; \
 php artisan view:cache; \
 [ -L public/storage ] || php artisan storage:link; \
-echo \"Laravel app starting on :${PORT:-8000}\"; \
+echo \"Laravel app starting on port ${PORT:-8000}\"; \
 exec php artisan serve --host=0.0.0.0 --port=\"${PORT:-8000}\" \
 "]
